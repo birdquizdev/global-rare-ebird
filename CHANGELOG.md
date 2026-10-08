@@ -10,6 +10,7 @@ User-visible changes are recorded here. Versions follow Semantic Versioning. The
 
 ### Added
 
+- Rarity sort, the default when a state rarity table is available: species with the fewest historical eBird records in the state come first, and species missing from the table count as rarest. Tables are generated from the eBird Basic Dataset with `scripts/generate-rarity.mjs` (California is wired up; `data/rarity-us-ca.json` is an empty placeholder until generated).
 - Combine sightings of the same species at the same location and checklist start date/time, keeping the maximum individual count and joining observer names.
 
 ## [0.7.1] - 2026-10-03

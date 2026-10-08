@@ -4,8 +4,9 @@ export const filterSearchOptions = [
   { text: "Location name", value: "locName" },
 ]
 
-export function createSortOptionLabels(hasLocationCoords = false) {
+export function createSortOptionLabels(hasLocationCoords = false, hasRarityData = false) {
   return [
+    ...(hasRarityData ? [{ text: "Rarity (fewest eBird records)", value: "rarity" }] : []),
     { text: "Taxonomic order", value: "tax" },
     ...(hasLocationCoords ? [{ text: "Distance to me", value: "distToMe" }] : []),
     { text: "Date", value: "daysAgo" },
