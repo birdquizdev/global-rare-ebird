@@ -169,7 +169,7 @@
                     class="form-check"
                   >
                     <input
-                      v-model="app.filterSortOptionsSelected" @change="app.trackSetting('sort', app.filterSortOptionsSelected)"
+                      v-model="app.filterSortOptionsSelected" @change="app.sortChosenByUser = true; app.trackSetting('sort', app.filterSortOptionsSelected)"
                       class="form-check-input"
                       type="radio"
                       :value="option.value"
@@ -261,6 +261,13 @@
                     @keydown.space.stop.prevent="app.openStatusBadgeModal(species.statusSystemId)"
                   >
                     {{ species.statusBadge }}
+                  </span>
+                  <span
+                    v-if="species.rarityCount !== null"
+                    class="small text-body-secondary flex-shrink-0"
+                    title="Historical eBird records of this species in the state"
+                  >
+                    {{ species.rarityCount ? `${species.rarityCount.toLocaleString()} records` : "no prior records" }}
                   </span>
                 </span>
                 <span class="badge rounded-pill bg-dark ms-auto species-accordion-shell__count">{{

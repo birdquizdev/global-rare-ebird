@@ -13,6 +13,7 @@ import {
 } from "../utils/observations";
 import { lookupDefaultRegion } from "../utils/default-region.js";
 import { parseShareState, serializeShareState } from "../utils/query";
+import { applyRarityToObservations, loadRarityLookups } from "../utils/rarity.js";
 import { loadTaxonomyResources } from "../utils/taxonomy-resources";
 import { createGeolocationController } from "./geolocationController.js";
 import { createSortOptionLabels, filterSearchOptions } from "./globalRareBirdOptions.js";
@@ -94,8 +95,9 @@ export function useGlobalRareBird() {
   const filterSearch = ref("");
   const filterSearchOptionsSelected = ref(["comName", "sciName", "locName"]);
   const hasLocationCoords = computed(() => Boolean(locationCoords.value));
-  const filterSortOptions = computed(() => createSortOptionLabels(hasLocationCoords.value));
+  const filterSortOptions = computed(() => createSortOptionLabels(hasLocationCoords.value, hasRarityData.value));
   const filterSortOptionsSelected = ref("tax");
+  const sortChosenByUser = ref(false);
   const statusLimit = ref(1);
   const speIndexMax = ref(50);
   const mapStyleKey = ref(mapboxStyles[0].key);
@@ -152,6 +154,8 @@ export function useGlobalRareBird() {
   const allObservations = computed(() =>
     combineSharedObservations(isMylocation.value ? observationsMylocation.value : regionObservations.value),
   );
+
+  const hasRarityData = computed(() => allObservations.value.some((obs) => obs.rarityCount !== null));
 
   const candidateObservations = computed(() =>
     filterObservations(allObservations.value, {
@@ -256,6 +260,10 @@ export function useGlobalRareBird() {
     applyDistanceToObservations,
   });
 
+  async function applyRarity(observations) {
+    applyRarityToObservations(observations, await loadRarityLookups(observations));
+  }
+
   function setLoading(label, active) {
     if (active) {
       loadingStack.value.push(label);
@@ -312,6 +320,18 @@ export function useGlobalRareBird() {
     hasLocationCoords,
     (available) => {
       if (!available && filterSortOptionsSelected.value === "distToMe") {
+        filterSortOptionsSelected.value = "tax";
+      }
+    },
+    { immediate: true },
+  );
+
+  watch(
+    hasRarityData,
+    (available) => {
+      if (available && !sortChosenByUser.value) {
+        filterSortOptionsSelected.value = "rarity";
+      } else if (!available && filterSortOptionsSelected.value === "rarity") {
         filterSortOptionsSelected.value = "tax";
       }
     },
@@ -512,11 +532,14 @@ export function useGlobalRareBird() {
           headers: { "X-eBirdApiToken": ebirdApiKey },
         });
         controller.signal.throwIfAborted();
-        observationsMylocation.value = normalizeObservationRows(json, {
+        const observations = normalizeObservationRows(json, {
           regionCode: "mylocation",
           taxonomyLookup,
           location: coords,
         });
+        await applyRarity(observations);
+        controller.signal.throwIfAborted();
+        observationsMylocation.value = observations;
         trackEvent("data_load", { mode: "around", outcome: "success", source: "network" });
         clearMapVisibleLocationIds();
         fitRequest.value += 1;
@@ -558,6 +581,8 @@ export function useGlobalRareBird() {
             regionTaxonomyLookups,
             location: locationCoords.value,
           });
+          await applyRarity(observations);
+          controller.signal.throwIfAborted();
           regionCache.set(code, { key: cacheKey, observations });
           return observations;
         }));
@@ -749,6 +774,8 @@ export function useGlobalRareBird() {
     filterSearchOptionsSelected,
     filterSortOptions,
     filterSortOptionsSelected,
+    sortChosenByUser,
+    hasRarityData,
     statusLimit,
     speIndexMax,
     mapVisibleLocationIds,

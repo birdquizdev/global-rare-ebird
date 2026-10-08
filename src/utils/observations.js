@@ -40,6 +40,23 @@ function getLatestObservationTimestamp(observations) {
   return lastObservation ? toObservationTimestamp(lastObservation.obsDt) : -Infinity
 }
 
+// Fewest eBird records first; observations without a rarity table sort last.
+function compareRarity(left = null, right = null) {
+  if (left === right) {
+    return 0
+  }
+
+  if (left === null) {
+    return 1
+  }
+
+  if (right === null) {
+    return -1
+  }
+
+  return left - right
+}
+
 function getClosestObservationDistance(observations) {
   let closest = Number.POSITIVE_INFINITY
 
@@ -198,6 +215,8 @@ export function normalizeObservationRows(rows, options) {
         lng: Number(raw.lng),
       },
       obsId: raw.obsId,
+      subnational1Code: raw.subnational1Code || regionCode.split("-").slice(0, 2).join("-"),
+      rarityCount: null,
       userDisplayName: raw.userDisplayName || "",
       hasComments: Boolean(raw.hasComments),
       hasRichMedia: Boolean(raw.hasRichMedia),
@@ -273,6 +292,10 @@ export function sortObservations(observations, sortKey) {
   sorted.sort((left, right) => {
     if (sortKey === "daysAgo") {
       return right.daysAgo - left.daysAgo
+    }
+
+    if (sortKey === "rarity") {
+      return compareRarity(left.rarityCount, right.rarityCount) || left.daysAgo - right.daysAgo
     }
 
     const leftValue = left[sortKey]
@@ -373,6 +396,23 @@ function sortSpeciesEntries(entries, sortKey) {
       return left.comName.localeCompare(right.comName)
     }
 
+    if (sortKey === "rarity") {
+      const rarityDifference = compareRarity(left.rarityCount, right.rarityCount)
+
+      if (rarityDifference) {
+        return rarityDifference
+      }
+
+      const leftLatest = getLatestObservationTimestamp(left.obs)
+      const rightLatest = getLatestObservationTimestamp(right.obs)
+
+      if (leftLatest !== rightLatest) {
+        return rightLatest - leftLatest
+      }
+
+      return left.comName.localeCompare(right.comName)
+    }
+
     if (sortKey === "distToMe") {
       const leftDistance = getClosestObservationDistance(left.obs)
       const rightDistance = getClosestObservationDistance(right.obs)
@@ -423,6 +463,7 @@ export function groupObservations(observations, sortKey = "tax") {
         comName: obs.comName,
         speciesCode: obs.speciesCode,
         tax: obs.tax,
+        rarityCount: null,
         statusSystemId: obs.statusSystemId,
         statusCode: obs.statusCode,
         statusBadge: obs.statusBadge,
@@ -440,6 +481,7 @@ export function groupObservations(observations, sortKey = "tax") {
 
     species.obs.push(obs)
     species.count += 1
+    species.rarityCount = compareRarity(obs.rarityCount, species.rarityCount) < 0 ? obs.rarityCount : species.rarityCount
     addStatusToSummary(species._statusSummary, obs)
 
     let speciesLocation = species._locationMap.get(obs.locId)

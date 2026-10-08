@@ -39,6 +39,17 @@ Pull requests run lint, regression tests, version metadata checks, the productio
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the issue/PR workflow, debugging commands, semantic versions, and manual dependency maintenance. Run `npm run check` for the local checks. Version history is recorded in [CHANGELOG.md](CHANGELOG.md).
 
+## Rarity data
+
+The **Rarity** sort ranks species by how many eBird records exist for them in the state, fewest first. The eBird API has no endpoint for this, so counts come from the [eBird Basic Dataset](https://ebird.org/data/download) (free access request), reduced to a small JSON file that is committed to Git. The script streams the file line by line, so even a multi-gigabyte download never has to be opened.
+
+```sh
+node scripts/generate-rarity.mjs --ebd path/to/ebd_US-CA_relOct-2026.txt --region US-CA
+# gzipped input works too, or pipe a gunzip into --ebd -
+```
+
+This fetches the current eBird taxonomy to map scientific names to species codes (pass `--taxonomy file.csv` to use a saved copy) and writes `data/rarity-us-ca.json`. Until that file has counts, the Rarity option stays hidden and the sort defaults to taxonomic order. Rerun it after each quarterly EBD release. To add another state, add a `data/rarity-<region>.json` entry to `src/utils/rarity.js`.
+
 ## Taxonomy data
 
 Use the linear Avibase workflow in [docs/taxonomy-review.md](docs/taxonomy-review.md):
